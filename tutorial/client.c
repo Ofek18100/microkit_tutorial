@@ -4,12 +4,16 @@
 #include "printf.h"
 #include "wordle.h"
 
+uintptr_t user_input;                                                                                                                          
+uintptr_t game_state;
+
 #define MOVE_CURSOR_UP "\033[5A"
 #define CLEAR_TERMINAL_BELOW_CURSOR "\033[0J"
 #define GREEN "\033[32;1;40m"
 #define YELLOW "\033[39;103m"
 #define DEFAULT_COLOUR "\033[0m"
-
+#define CLIENT_CHANNEL_ID 2
+#define WORDLE_SERVER_CHANNEL_ID 3
 #define INVALID_CHAR (-1)
 
 struct wordle_char {
@@ -25,14 +29,24 @@ static int curr_row = 0;
 static int curr_letter = 0;
 
 void wordle_server_send() {
-    // Implement this function to send the word over PPC
-    // After doing the PPC, the Wordle server should have updated
-    // the message-registers containing the state of each character.
-    // Look at the message registers and update the `table` accordingly.
+    for (int i = 0; i < WORD_LENGTH; i++) {
+        microkit_mr_set(i, table[curr_row][i].ch);
+    }
+
+    microkit_ppcall(WORDLE_SERVER_CHANNEL_ID, microkit_msginfo_new(0, WORD_LENGTH));
+
+    for (int i = 0; i < WORD_LENGTH; i++) {
+        table[curr_row][i].state = microkit_mr_get(i);
+    }
 }
 
 void serial_send(char *str) {
-    // Implement this function to get the serial server to print the string.
+    char *buf = (char *)game_state;
+    while (*str) {
+        *buf++ = *str++;
+    }
+    *buf = 0;
+    microkit_notify(CLIENT_CHANNEL_ID);
 }
 
 // This function prints a CLI Wordle using pretty colours for what characters
@@ -116,7 +130,6 @@ void add_char_to_table(char c) {
 void init(void) {
     microkit_dbg_puts("CLIENT: starting\n");
     serial_send("Welcome to the Wordle client!\n");
-
     init_table();
     // Don't want to clear the terminal yet since this is the first time
     // we are printing it (we want to clear just the Wordle table, not
@@ -124,4 +137,10 @@ void init(void) {
     print_table(false);
 }
 
-void notified(microkit_channel channel) {}
+void notified(microkit_channel channel) {
+    switch (channel) {
+        case CLIENT_CHANNEL_ID:
+            add_char_to_table(((char *)user_input)[0]);
+            print_table(true);
+    }
+}

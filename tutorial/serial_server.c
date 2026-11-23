@@ -4,6 +4,10 @@
 
 // This variable will have the address of the UART device
 uintptr_t uart_base_vaddr;
+uintptr_t user_input;
+uintptr_t game_state;
+
+static uint64_t num_chars_entered = 0;
 
 #define RHR_MASK 0b111111111
 #define UARTDR 0x000
@@ -12,6 +16,7 @@ uintptr_t uart_base_vaddr;
 #define UARTICR 0x044
 #define PL011_UARTFR_TXFF (1 << 5)
 #define PL011_UARTFR_RXFE (1 << 4)
+#define SERVER_CHANNEL_ID 1
 
 #define REG_PTR(base, offset) ((volatile uint32_t *)((base) + (offset)))
 
@@ -70,4 +75,19 @@ void init(void) {
     uart_put_str("SERIAL SERVER: starting\n");
 }
 
-void notified(microkit_channel channel) {}
+void notified(microkit_channel channel) {
+	if (channel == SERVER_CHANNEL_ID) {
+		uart_put_str((char *)game_state);
+		return;
+	}
+
+	int input_ch = uart_get_char();
+	uart_handle_irq();
+	microkit_irq_ack(channel);
+
+	if (input_ch != 0) {
+		((char *)user_input)[0] = input_ch;
+		num_chars_entered++;
+		microkit_notify(SERVER_CHANNEL_ID);
+	}
+}

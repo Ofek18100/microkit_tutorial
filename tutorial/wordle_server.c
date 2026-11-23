@@ -35,4 +35,23 @@ void init(void) {
     microkit_dbg_puts("WORDLE SERVER: starting\n");
 }
 
+microkit_msginfo protected(microkit_channel ch, microkit_msginfo msginfo)
+{
+    if (ch == 1) {
+        for (uint64_t i = 0; i < WORD_LENGTH; i++) {
+            microkit_mr_set(i, char_to_state(microkit_mr_get(i), word, i));
+        }
+
+        return microkit_msginfo_new(0, WORD_LENGTH);
+    }
+    if (ch == 2) {
+        for (uint64_t i = 0 ; i < WORD_LENGTH ; i++) {
+            word[i] = microkit_mr_get(i);
+        }
+        printf("the word is: %s \n", word);
+        return microkit_msginfo_new(0, 0);
+    }
+    return microkit_msginfo_new(0, WORD_LENGTH);
+}
+
 void notified(microkit_channel channel) {}
