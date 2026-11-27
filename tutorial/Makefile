@@ -35,26 +35,18 @@ AS := $(TOOLCHAIN)-as
 MICROKIT_TOOL ?= $(MICROKIT_SDK)/bin/microkit
 
 PRINTF_OBJS := printf.o util.o
-SERIAL_SERVER_OBJS := $(PRINTF_OBJS) serial_server.o
-CLIENT_OBJS := $(PRINTF_OBJS) client.o
+GAME_OBJS := $(PRINTF_OBJS) game.o
 WORDLE_SERVER_OBJS := $(PRINTF_OBJS) wordle_server.o
 VMM_OBJS := $(PRINTF_OBJS) vmm.o psci.o smc.o fault.o cpuif.o vgic.o global_data.o vgic_v2.o
 
 BOARD_DIR := $(MICROKIT_SDK)/board/$(BOARD)/$(MICROKIT_CONFIG)
 
-IMAGES_PART_1 := serial_server.elf
-IMAGES_PART_2 := serial_server.elf client.elf
-IMAGES_PART_3 := serial_server.elf client.elf wordle_server.elf
-IMAGES_PART_4 := serial_server.elf client.elf wordle_server.elf vmm.elf
+IMAGES := game.elf wordle_server.elf vmm.elf
 # Note that these warnings being disabled is to avoid compilation errors while in the middle of completing each exercise part
 CFLAGS := -mcpu=$(CPU) -mstrict-align -nostdlib -fno-stack-protector -ffreestanding -g -Wall -Wno-array-bounds -Wno-unused-variable -Wno-unused-function -Werror -I$(BOARD_DIR)/include -Ivmm/src/util -Iinclude -DBOARD_$(BOARD)
 LDFLAGS := -L$(BOARD_DIR)/lib
 LIBS := -lmicrokit -Tmicrokit.ld
 
-IMAGE_FILE_PART_1 = $(BUILD_DIR)/wordle_part_one.img
-IMAGE_FILE_PART_2 = $(BUILD_DIR)/wordle_part_two.img
-IMAGE_FILE_PART_3 = $(BUILD_DIR)/wordle_part_three.img
-IMAGE_FILE_PART_4 = $(BUILD_DIR)/wordle_part_four.img
 IMAGE_FILE = $(BUILD_DIR)/loader.img
 REPORT_FILE = $(BUILD_DIR)/report.txt
 
@@ -78,11 +70,6 @@ run: $(IMAGE_FILE)
 		-netdev user,id=mynet0 \
 		-device virtio-net-device,netdev=mynet0,mac=52:55:00:d1:55:01
 
-part1: directories $(BUILD_DIR)/serial_server.elf $(IMAGE_FILE_PART_1)
-part2: directories $(BUILD_DIR)/client.elf $(IMAGE_FILE_PART_2)
-part3: directories $(BUILD_DIR)/wordle_server.elf $(IMAGE_FILE_PART_3)
-part4: directories $(BUILD_DIR)/vmm.elf $(IMAGE_FILE_PART_4)
-
 $(BUILD_DIR)/%.o: %.c Makefile
 	$(CC) -c $(CFLAGS) $< -o $@
 
@@ -102,10 +89,7 @@ $(BUILD_DIR)/global_data.o: vmm/src/global_data.S $(KERNEL_IMAGE) $(INITRD_IMAGE
 					-DVM_INITRD_IMAGE_PATH=\"$(INITRD_IMAGE)\" \
 					$< -o $@
 
-$(BUILD_DIR)/serial_server.elf: $(addprefix $(BUILD_DIR)/, $(SERIAL_SERVER_OBJS))
-	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
-
-$(BUILD_DIR)/client.elf: $(addprefix $(BUILD_DIR)/, $(CLIENT_OBJS))
+$(BUILD_DIR)/game.elf: $(addprefix $(BUILD_DIR)/, $(GAME_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(BUILD_DIR)/wordle_server.elf: $(addprefix $(BUILD_DIR)/, $(WORDLE_SERVER_OBJS))
@@ -114,14 +98,5 @@ $(BUILD_DIR)/wordle_server.elf: $(addprefix $(BUILD_DIR)/, $(WORDLE_SERVER_OBJS)
 $(BUILD_DIR)/vmm.elf: $(addprefix $(BUILD_DIR)/, $(VMM_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
-$(IMAGE_FILE_PART_1): $(addprefix $(BUILD_DIR)/, $(IMAGES_PART_1)) wordle.system
-	$(MICROKIT_TOOL) wordle.system --search-path $(BUILD_DIR) --board $(BOARD) --config $(MICROKIT_CONFIG) -o $(IMAGE_FILE) -r $(REPORT_FILE)
-
-$(IMAGE_FILE_PART_2): $(addprefix $(BUILD_DIR)/, $(IMAGES_PART_2)) wordle.system
-	$(MICROKIT_TOOL) wordle.system --search-path $(BUILD_DIR) --board $(BOARD) --config $(MICROKIT_CONFIG) -o $(IMAGE_FILE) -r $(REPORT_FILE)
-
-$(IMAGE_FILE_PART_3): $(addprefix $(BUILD_DIR)/, $(IMAGES_PART_3)) wordle.system
-	$(MICROKIT_TOOL) wordle.system --search-path $(BUILD_DIR) --board $(BOARD) --config $(MICROKIT_CONFIG) -o $(IMAGE_FILE) -r $(REPORT_FILE)
-
-$(IMAGE_FILE_PART_4): $(addprefix $(BUILD_DIR)/, $(IMAGES_PART_4)) wordle.system
+$(IMAGE_FILE): $(addprefix $(BUILD_DIR)/, $(IMAGES)) wordle.system
 	$(MICROKIT_TOOL) wordle.system --search-path $(BUILD_DIR) --board $(BOARD) --config $(MICROKIT_CONFIG) -o $(IMAGE_FILE) -r $(REPORT_FILE)

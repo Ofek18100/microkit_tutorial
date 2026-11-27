@@ -2,39 +2,28 @@
 <system>
 
     <memory_region name="uart" size="0x1000" phys_addr="0x9000000" />
-    <memory_region name="user_input" size="0x1000" />
-    <memory_region name="game_state" size="0x3000" />
     <memory_region name="guest_ram" size="0x10000000" page_size="0x200000"
         phys_addr="0x40000000" />
     <memory_region name="ethernet" size="0x1000" phys_addr="0xa003000" />
     <memory_region name="gic_vcpu" size="0x1000" phys_addr="0x8040000" />
-    
 
-    <protection_domain name="wordle_server" priority="102">  
-        <program_image path="wordle_server.elf" />                                                                                                 </protection_domain>
+    <protection_domain name="wordle_server" priority="254">
+        <program_image path="wordle_server.elf" />
+    </protection_domain>
 
-    <protection_domain name="server" priority="254">
-		<program_image path="serial_server.elf" />
-		 <map mr="uart" vaddr="0x4000000" perms="rw" cached="false"
-             setvar_vaddr="uart_base_vaddr" />
-         <map mr="user_input" vaddr="0x5000000" perms="rw" setvar_vaddr="user_input"/>
-         <map mr="game_state" vaddr="0x5004000" perms="r" setvar_vaddr="game_state"/>
-         <irq id="0" irq="33" />
-     </protection_domain>
-
-     <protection_domain name="client" priority="100">
-         <program_image path="client.elf" />
-             <map mr="user_input" vaddr="0x4000000" perms="r" setvar_vaddr="user_input"/>
-             <map mr="game_state" vaddr="0x4004000" perms="rw" setvar_vaddr="game_state"/>
-     </protection_domain>
-     
-     <channel>
-        <end pd="server" id="1" />
-        <end pd="client" id="2" />
-    </channel>
+    <protection_domain name="game" priority="253">
+        <program_image path="game.elf" />
+        <map mr="uart" vaddr="0x4000000" perms="rw" cached="false"
+            setvar_vaddr="uart_base_vaddr" />
+        <irq id="0" irq="33" />
+        <cspace>
+            <cap_tcb slot="1" pd="wordle_server" />
+            <cap_tcb slot="2" pd="game" />
+        </cspace>
+    </protection_domain>
 
     <channel>
-        <end pd="client" id="3" pp="true"/>
+        <end pd="game" id="1" pp="true" />
         <end pd="wordle_server" id="1" />
     </channel>
 
